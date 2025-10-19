@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Minesweeper | TheGhostPacket</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💣</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0891b2;
+            --primary-dark: #0e7490;
+            --danger: #dc2626;
+            --success: #059669;
+            --warning: #f59e0b;
+            --bg: #ffffff;
+            --bg-card: #f8fafc;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .game-container {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .diff-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border);
+            background: white;
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .diff-btn:hover {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .diff-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .board {
+            display: grid;
+            gap: 2px;
+            background: var(--border);
+            padding: 2px;
+            border-radius: 10px;
+            margin: 2rem auto;
+            width: fit-content;
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .cell:hover:not(.revealed):not(.flagged) {
+            background: linear-gradient(135deg, #67e8f9, #22d3ee);
+            transform: scale(1.05);
+        }
+
+        .cell.revealed {
+            background: #ffffff;
+            cursor: default;
+            border-color: var(--border);
+        }
+
+        .cell.flagged {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+        }
+
+        .cell.mine {
+            background: linear-gradient(135deg, #fecaca, #fca5a5);
+        }
+
+        .cell.number-1 { color: #2563eb; }
+        .cell.number-2 { color: #059669; }
+        .cell.number-3 { color: #dc2626; }
+        .cell.number-4 { color: #7c3aed; }
+        .cell.number-5 { color: #ea580c; }
+        .cell.number-6 { color: #0891b2; }
+        .cell.number-7 { color: #000000; }
+        .cell.number-8 { color: #64748b; }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(8, 145, 178, 0.3);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlide 0.3s ease;
+        }
+
+        @keyframes modalSlide {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .modal-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .instructions {
+            background: #e0f2fe;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        .instructions h3 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .instructions ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .instructions li {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .instructions li:before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+        }
+
+        .timer {
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .cell {
+                width: 30px;
+                height: 30px;
+                font-size: 1rem;
+            }
+
+            .game-container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>💣 Network Minesweeper</h1>
+        <p class="subtitle">Scan the network and find all hidden threats!</p>
+    </header>
+
+    <div class="game-container">
+        <div class="instructions">
+            <h3>🎯 How to Play</h3>
+            <ul>
+                <li><strong>Left Click:</strong> Scan a device (reveal)</li>
+                <li><strong>Right Click:</strong> Flag suspected malware</li>
+                <li><strong>Numbers:</strong> Show nearby threats</li>
+                <li><strong>Goal:</strong> Find all malware without clicking on one!</li>
+            </ul>
+        </div>
+
+        <div class="controls">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="mineCount">10</div>
+                    <div class="stat-label">💀 Threats</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value timer" id="timer">00:00</div>
+                    <div class="stat-label">⏱️ Time</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="score">0</div>
+                    <div class="stat-label">🎯 Score</div>
+                </div>
+            </div>
+
+            <div class="difficulty-selector">
+                <button class="diff-btn active" data-level="easy">Easy</button>
+                <button class="diff-btn" data-level="medium">Medium</button>
+                <button class="diff-btn" data-level="hard">Hard</button>
+            </div>
+        </div>
+
+        <div id="board" class="board"></div>
+
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="initGame()">
+                🔄 New Game
+            </button>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="winModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-icon">🎉</div>
+            <h2>Network Secured!</h2>
+            <p style="font-size: 1.2rem; margin: 1rem 0;">All threats detected and neutralized!</p>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">
+                Time: <strong id="winTime">00:00</strong><br>
+                Score: <strong id="winScore">0</strong>
+            </p>
+            <button class="btn btn-primary" onclick="closeModal(); initGame();">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <!-- Lose Modal -->
+    <div id="loseModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-icon">💥</div>
+            <h2>Network Breached!</h2>
+            <p style="font-size: 1.2rem; margin: 1rem 0; color: var(--danger);">
+                You clicked on malware!
+            </p>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">
+                Time survived: <strong id="loseTime">00:00</strong>
+            </p>
+            <button class="btn btn-primary" onclick="closeModal(); initGame();">
+                Try Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let board = [];
+        let rows = 8;
+        let cols = 10;
+        let mineCount = 10;
+        let flags = 0;
+        let timerInterval;
+        let seconds = 0;
+        let gameOver = false;
+        let score = 0;
+        let difficulty = 'easy';
+
+        const difficulties = {
+            easy: { rows: 8, cols: 10, mines: 10 },
+            medium: { rows: 14, cols: 18, mines: 40 },
+            hard: { rows: 20, cols: 24, mines: 99 }
+        };
+
+        // Difficulty selector
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                difficulty = btn.dataset.level;
+                initGame();
+            });
+        });
+
+        function initGame() {
+            gameOver = false;
+            flags = 0;
+            seconds = 0;
+            score = 0;
+            clearInterval(timerInterval);
+            
+            const config = difficulties[difficulty];
+            rows = config.rows;
+            cols = config.cols;
+            mineCount = config.mines;
+            
+            document.getElementById('mineCount').textContent = mineCount;
+            document.getElementById('timer').textContent = '00:00';
+            document.getElementById('score').textContent = '0';
+            
+            createBoard();
+            renderBoard();
+        }
+
+        function createBoard() {
+            board = [];
+            for (let r = 0; r < rows; r++) {
+                board[r] = [];
+                for (let c = 0; c < cols; c++) {
+                    board[r][c] = {
+                        mine: false,
+                        revealed: false,
+                        flagged: false,
+                        count: 0
+                    };
+                }
+            }
+            
+            // Place mines
+            let minesPlaced = 0;
+            while (minesPlaced < mineCount) {
+                const r = Math.floor(Math.random() * rows);
+                const c = Math.floor(Math.random() * cols);
+                if (!board[r][c].mine) {
+                    board[r][c].mine = true;
+                    minesPlaced++;
+                }
+            }
+            
+            // Calculate numbers
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (!board[r][c].mine) {
+                        board[r][c].count = countAdjacentMines(r, c);
+                    }
+                }
+            }
+        }
+
+        function countAdjacentMines(row, col) {
+            let count = 0;
+            for (let r = row - 1; r <= row + 1; r++) {
+                for (let c = col - 1; c <= col + 1; c++) {
+                    if (r >= 0 && r < rows && c >= 0 && c < cols && board[r][c].mine) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        function renderBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            boardEl.style.gridTemplateColumns = `repeat(${cols}, 40px)`;
+            
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    
+                    if (board[r][c].revealed) {
+                        cell.classList.add('revealed');
+                        if (board[r][c].mine) {
+                            cell.classList.add('mine');
+                            cell.textContent = '💀';
+                        } else if (board[r][c].count > 0) {
+                            cell.textContent = board[r][c].count;
+                            cell.classList.add(`number-${board[r][c].count}`);
+                        }
+                    } else if (board[r][c].flagged) {
+                        cell.classList.add('flagged');
+                        cell.textContent = '🚩';
+                    } else {
+                        cell.textContent = '🖥️';
+                    }
+                    
+                    cell.addEventListener('click', () => handleCellClick(r, c));
+                    cell.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        handleRightClick(r, c);
+                    });
+                    
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function handleCellClick(row, col) {
+            if (gameOver || board[row][col].revealed || board[row][col].flagged) return;
+            
+            if (!timerInterval) {
+                startTimer();
+            }
+            
+            if (board[row][col].mine) {
+                revealAllMines();
+                gameOver = true;
+                clearInterval(timerInterval);
+                setTimeout(() => showLoseModal(), 500);
+                return;
+            }
+            
+            revealCell(row, col);
+            checkWin();
+        }
+
+        function handleRightClick(row, col) {
+            if (gameOver || board[row][col].revealed) return;
+            
+            board[row][col].flagged = !board[row][col].flagged;
+            flags += board[row][col].flagged ? 1 : -1;
+            document.getElementById('mineCount').textContent = mineCount - flags;
+            renderBoard();
+        }
+
+        function revealCell(row, col) {
+            if (row < 0 || row >= rows || col < 0 || col >= cols) return;
+            if (board[row][col].revealed || board[row][col].flagged) return;
+            
+            board[row][col].revealed = true;
+            score += 10;
+            document.getElementById('score').textContent = score;
+            
+            if (board[row][col].count === 0) {
+                for (let r = row - 1; r <= row + 1; r++) {
+                    for (let c = col - 1; c <= col + 1; c++) {
+                        revealCell(r, c);
+                    }
+                }
+            }
+            
+            renderBoard();
+        }
+
+        function revealAllMines() {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (board[r][c].mine) {
+                        board[r][c].revealed = true;
+                    }
+                }
+            }
+            renderBoard();
+        }
+
+        function checkWin() {
+            let revealedCount = 0;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (board[r][c].revealed && !board[r][c].mine) {
+                        revealedCount++;
+                    }
+                }
+            }
+            
+            const totalSafe = rows * cols - mineCount;
+            if (revealedCount === totalSafe) {
+                gameOver = true;
+                clearInterval(timerInterval);
+                setTimeout(() => showWinModal(), 300);
+            }
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                seconds++;
+                const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+                const secs = (seconds % 60).toString().padStart(2, '0');
+                document.getElementById('timer').textContent = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function showWinModal() {
+            const modal = document.getElementById('winModal');
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('winTime').textContent = `${mins}:${secs}`;
+            document.getElementById('winScore').textContent = score;
+            modal.classList.add('active');
+        }
+
+        function showLoseModal() {
+            const modal = document.getElementById('loseModal');
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('loseTime').textContent = `${mins}:${secs}`;
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('winModal').classList.remove('active');
+            document.getElementById('loseModal').classList.remove('active');
+        }
+
+        // Initialize game on load
+        initGame();
+    </script>
+</body>
+</html>
